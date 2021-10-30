@@ -129,8 +129,6 @@ class Encryptor:
         '''
         assert 0 < ratio <= 1, 'Please check the ratio.'
 
-        params = self.encrypt_op.get_public_params()
-
         if format == 'pkl':
             bytes_datas = pickle.dumps(input, protocol=4)
             spilt_length = math.ceil(len(bytes_datas) * ratio)
@@ -143,7 +141,7 @@ class Encryptor:
             with open(f'{output}.{format}', "wb") as file:
                 pickle.dump({
                     'datas': Encryptor.bytes2str(encrypt_datas),
-                    'params': Encryptor.check_and_convert(params),
+                    'params': Encryptor.check_and_convert(self.encrypt_op.get_public_params()),
                     'length': length,
                     'decode': self.encrypt_op.decode
                 }, file, protocol=4)
@@ -161,7 +159,7 @@ class Encryptor:
             with open(f'{output}.{format}', "w") as file:
                 json.dump({
                     'datas': Encryptor.bytes2str(encrypt_datas),
-                    'params': Encryptor.check_and_convert(params),
+                    'params': Encryptor.check_and_convert(self.encrypt_op.get_public_params()),
                     'length': length
                 }, file)
         else:
