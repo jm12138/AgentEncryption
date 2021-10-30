@@ -107,13 +107,13 @@ class Encryptor:
         else:
             raise ValueError('Please check input data type.')
 
-    def encode(self, input: any, output: str, format: str = 'pkl', export: str = None, check: bool = True) -> dict:
+    def encode(self, input: any, output: str = None, format: str = 'pkl', export: str = None, check: bool = True) -> dict:
         '''
         加密函数
 
         :param 
             input(any): 输入的需要加密的数据
-            output(str): 输出的文件路径名称（无需文件后缀）
+            output(str: None): 输出的文件路径名称（无需文件后缀），默认为 {input}.{format}
             format(str: pkl [pkl / json]): 输出的数据格式
             export(str: None): 导出密钥等私密参数的路径名称（无需文件后缀），默认返回但不导出文件
             check(bool: True): 检测加密数据是否可以正常解密
@@ -125,6 +125,9 @@ class Encryptor:
             pkl: 此格式支持的加密数据类型较多，并且附带 python 解密函数，可依靠自身进行解密，但只可以在 python 端进行解密操作
             json: 此格式支持如下几种数据类型 (dict, list, str, int, float, bool, None, bytes->bytes_str, tuple(must -> list)), 可以在任意语言中读取和解密，需搭配对应语言的解密函数进行解密操作
         '''
+        if output is None:
+            output = input
+
         if format == 'pkl':
             encrypt_datas = self.encrypt_op.encode(
                 pickle.dumps(input, protocol=4))
