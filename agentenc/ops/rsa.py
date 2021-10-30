@@ -92,6 +92,7 @@ class RSAEncryptOp(EncryptOp):
 
         for i in range(0, len(input), self.length):
             cipher_text_.append(cipher.encrypt(input[i:i + self.length]))
+
         output = b""
         for item in cipher_text_:
             output += item
@@ -114,10 +115,13 @@ class RSAEncryptOp(EncryptOp):
         rsa_key = RSA.importKey(private_key)
         cipher = PKCS1_v1_5.new(rsa_key)
         plain_text_ = []
+
         for i in range(0, len(input), length):
             plain_text_.append(cipher.decrypt(
                 input[i:i + length], "Decode error."))
+
         output = b""
         for item in plain_text_:
             output += item
+
         return output
