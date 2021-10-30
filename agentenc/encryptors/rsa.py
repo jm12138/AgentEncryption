@@ -13,19 +13,20 @@ class RSAEncryptor(Encryptor):
         '''
         super(RSAEncryptor, self).__init__(
             RSAEncryptOp(
-                bits=bits, 
+                bits=bits,
                 public_key=public_key
             )
         )
 
     @staticmethod
-    def decode(input: str, private_key: bytes) -> any:
+    def decode(input: str, private_key: bytes, **kwargs) -> any:
         '''
         解密函数
 
         :param 
             input(str): 输入的文件路径
             private_key(bytes): RSA 私钥用于数据解密
+            **kwargs: 其他参数
 
         :return
             pure_datas(any): 原始数据

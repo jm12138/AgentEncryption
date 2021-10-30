@@ -70,32 +70,26 @@ class AESEncryptOp(EncryptOp):
             with open(f'{save_path}.{KEY_FILE}', "wb") as f:
                 f.write(self.key)
 
-        return {
-            'key': self.key
-        }
+        return {'key': self.key}
 
     def get_public_params(self) -> dict:
         """
         获取解密所需的公开参数
 
         :return
-            public_params(dict): {'mode': 加密类型}
+            public_params(dict): {'mode': 加密类型, 'iv': iv, 'nonce': nonce}
         """
+        public_params = {
+            'mode': self.mode,
+        }
 
         if hasattr(self.aes, 'iv'):
-            return {
-                'mode': self.mode,
-                'iv': self.aes.iv
-            }
-        elif hasattr(self.aes, 'nonce'):
-            return {
-                'mode': self.mode,
-                'nonce': self.aes.nonce
-            }
-        else:
-            return {
-                'mode': self.mode
-            }
+            public_params['iv'] = self.aes.iv
+
+        if hasattr(self.aes, 'nonce'):
+            public_params['nonce'] = self.aes.nonce
+
+        return public_params
 
     def encode(self, input: bytes) -> bytes:
         """

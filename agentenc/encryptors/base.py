@@ -47,7 +47,7 @@ class Encryptor:
         '''
         if isinstance(input, str) and input[:21] == 'data:data/agt;base64,':
             input = base64.b64decode(input[21:].encode('UTF-8'))
-            assert type(input) == bytes
+            assert type(input) == bytes, "Decode error!"
         return input
 
     @staticmethod
@@ -62,18 +62,21 @@ class Encryptor:
             output(any): 输出
         '''
         if isinstance(input, dict):
-            _input = input.copy()
+            _input = {}
             for k in input.keys():
                 _input[k] = Encryptor.check_and_convert(input[k])
             return _input
-        elif isinstance(input, (list, tuple)):
-            _input = input.copy()
+        elif isinstance(input, list):
+            _input = []
             for i in range(len(input)):
-                _input[i] = Encryptor.check_and_convert(input[i])
+                _input.append(Encryptor.check_and_convert(input[i]))
             return _input
+        elif isinstance(input, tuple):
+            raise ValueError(
+                f'Please convert tuple input {input} to list type.')
         elif isinstance(input, bytes):
             return Encryptor.bytes2str(input)
-        elif isinstance(input, (str, int, float, bool, None)):
+        elif isinstance(input, (str, int, float, bool)) or input is None:
             return input
         else:
             raise ValueError('Please check input data type.')
@@ -93,41 +96,43 @@ class Encryptor:
             for k in input.keys():
                 input[k] = Encryptor.resume_and_convert(input[k])
             return input
-        elif isinstance(input, (list, tuple)):
+        elif isinstance(input, list):
             for i in range(len(input)):
                 input[i] = Encryptor.resume_and_convert(input[i])
             return input
         elif isinstance(input, str):
             return Encryptor.str2bytes(input)
-        elif isinstance(input, (int, float, bool, None)):
+        elif isinstance(input, (int, float, bool)) or input is None:
             return input
         else:
             raise ValueError('Please check input data type.')
 
-    def encode(self, input: any, output: str, format: str = 'pkl', keys_saving_path: str = None) -> dict:
+    def encode(self, input: any, output: str, format: str = 'pkl', export: str = None, check: bool = True) -> dict:
         '''
         加密函数
 
         :param 
             input(any): 输入的需要加密的数据
-            output(str): 输出的文件名称
+            output(str): 输出的文件路径名称（无需文件后缀）
             format(str: pkl [pkl / json]): 输出的数据格式
+            export(str: None): 导出密钥等私密参数的路径名称（无需文件后缀），默认返回但不导出文件
+            check(bool: True): 检测加密数据是否可以正常解密
 
         :return
             private_params(dict): 加密器的私密参数，如密钥等
 
         :format details
             pkl: 此格式支持的加密数据类型较多，并且附带 python 解密函数，可依靠自身进行解密，但只可以在 python 端进行解密操作
-            json: 此格式支持如下几种数据类型 (dict, list, tuple, str, int, float, bool, bytes->bytes_str, None), 可以在任意语言中读取和解密，需搭配对应语言的解密函数进行解密操作
+            json: 此格式支持如下几种数据类型 (dict, list, str, int, float, bool, None, bytes->bytes_str, tuple(must -> list)), 可以在任意语言中读取和解密，需搭配对应语言的解密函数进行解密操作
         '''
         if format == 'pkl':
             encrypt_datas = self.encrypt_op.encode(
                 pickle.dumps(input, protocol=4))
 
-            with open(output+'.pkl', "wb") as file:
+            with open(f'{output}.{format}', "wb") as file:
                 pickle.dump({
                     'datas': Encryptor.bytes2str(encrypt_datas),
-                    'params': self.encrypt_op.get_public_params(),
+                    'params': Encryptor.check_and_convert(self.encrypt_op.get_public_params()),
                     'decode': self.encrypt_op.decode
                 }, file, protocol=4)
 
@@ -135,7 +140,7 @@ class Encryptor:
             encrypt_datas = self.encrypt_op.encode(
                 json.dumps(Encryptor.check_and_convert(input)).encode('UTF-8'))
 
-            with open(output+'.json', "w") as file:
+            with open(f'{output}.{format}', "w") as file:
                 json.dump({
                     'datas': Encryptor.bytes2str(encrypt_datas),
                     'params': Encryptor.check_and_convert(self.encrypt_op.get_public_params())
@@ -143,7 +148,17 @@ class Encryptor:
         else:
             raise ValueError('Please check the format type.')
 
-        return self.encrypt_op.get_private_params(keys_saving_path)
+        private_params = self.encrypt_op.get_private_params(export)
+
+        if check:
+            _input = Encryptor.decode(
+                input=f'{output}.{format}',
+                decode=self.encrypt_op.decode,
+                **private_params
+            )
+            assert _input == input, "Encryption check error!"
+
+        return private_params
 
     @staticmethod
     def decode(input: str, decode=None, **kwargs) -> any:

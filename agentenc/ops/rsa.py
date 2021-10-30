@@ -58,15 +58,14 @@ class RSAEncryptOp(EncryptOp):
                 with open(f'{save_path}.{PRIVATE_FILE}', "wb") as f:
                     f.write(self.private_key)
 
+        private_params = {
+            'public_key': self.public_key,
+        }
+
         if self.private_key is not None:
-            return {
-                'public_key': self.public_key,
-                'private_key': self.private_key
-            }
-        else:
-            return {
-                'public_key': self.public_key
-            }
+            private_params['private_key'] = self.private_key
+
+        return private_params
 
     def get_public_params(self) -> dict:
         """
@@ -99,7 +98,7 @@ class RSAEncryptOp(EncryptOp):
         return output
 
     @staticmethod
-    def decode(input: bytes, length: int, private_key: bytes) -> bytes:
+    def decode(input: bytes, length: int, private_key: bytes, **kwargs) -> bytes:
         """
         RSA 解密
 
@@ -107,6 +106,7 @@ class RSAEncryptOp(EncryptOp):
             input(bytes): 加密数据
             length(int): 加密长度
             private_key(bytes): 私钥
+            **kwargs: 其他参数
 
         :return
             output(bytes): 原始数据

@@ -10,8 +10,8 @@ class AESEncryptor(Encryptor):
         :param 
             bits(int: 128): 加密使用的 bit 数
             mode(str: ECB): 加密类型，可选：['ECB', 'CBC', 'CFB', 'OFB', 'CTR', 'OPENPGP', 'CCM', 'EAX', 'SIV', 'GCM', 'OCB']
-            iv(bytes: None): 偏移值，长度为 16 bytes ，默认随机生成
             key(bytes: None): AES 密钥，长度为 (bits // 8) bytes ，默认随机生成
+            **kwargs: 一些其他的加密参数，如 iv, nonce 等
         '''
         super(AESEncryptor, self).__init__(
             AESEncryptOp(
@@ -30,7 +30,7 @@ class AESEncryptor(Encryptor):
         :param 
             input(str): 输入的文件路径
             key(bytes): AES 密钥
-            iv(bytes): 偏移值
+            **kwargs: 一些其他的加密参数，如 iv, nonce 等
 
         :return
             pure_datas(any): 原始数据
