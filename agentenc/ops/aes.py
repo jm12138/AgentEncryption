@@ -77,10 +77,11 @@ class AESEncryptOp(EncryptOp):
         获取解密所需的公开参数
 
         :return
-            public_params(dict): {'mode': 加密类型, 'iv': iv, 'nonce': nonce}
+            public_params(dict): {'mode': 加密类型, 'pad': 填充长度, 'iv': iv, 'nonce': nonce}
         """
         public_params = {
             'mode': self.mode,
+            'pad': self.pad
         }
 
         if hasattr(self.aes, 'iv'):
@@ -103,22 +104,23 @@ class AESEncryptOp(EncryptOp):
         """
         count = len(input)
         if count % self.length != 0:
-            add = self.length - (count % self.length)
+            self.pad = self.length - (count % self.length)
         else:
-            add = 0
+            self.pad = 0
 
-        input = input + (b'\x00' * add)
+        input = input + (b'\x00' * self.pad)
         output = self.aes.encrypt(input)
         return output
 
     @staticmethod
-    def decode(input: bytes, mode: str, key: bytes, **kwargs) -> bytes:
+    def decode(input: bytes, mode: str, pad: int, key: bytes, **kwargs) -> bytes:
         """
         AES 解密
 
         :param 
             input(bytes): 加密数据
             mode(str): 加密类型，可选：['ECB', 'CBC', 'CFB', 'OFB', 'CTR', 'CCM', 'EAX', 'GCM', 'OCB']
+            pad(int): 填充长度
             key(bytes): AES 密钥
             **kwargs: 一些其他的加密参数，如 iv, nonce 等
 
@@ -127,5 +129,5 @@ class AESEncryptOp(EncryptOp):
         """
         aes = AES.new(key=key, mode=ASE_MODES[mode], **kwargs)
         output = aes.decrypt(input)
-        output = output.rstrip(b'\x00')
+        output = output[:-pad]
         return output
