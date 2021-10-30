@@ -3,6 +3,7 @@
 # Copyright belongs to the author.
 # Please indicate the source for reprinting.
 import os
+import math
 import json
 import base64
 import pickle
@@ -107,15 +108,16 @@ class Encryptor:
         else:
             raise ValueError('Please check input data type.')
 
-    def encode(self, input: any, output: str = None, format: str = 'pkl', export: str = None, check: bool = True) -> dict:
+    def encode(self, input: any, output: str, format: str = 'pkl', export: str = None, ratio: float = 0.1, check: bool = True) -> dict:
         '''
         加密函数
 
         :param 
             input(any): 输入的需要加密的数据
-            output(str: None): 输出的文件路径名称（无需文件后缀），默认为 {input}.{format}
+            output(str: None): 输出的文件路径名称（无需文件后缀）
             format(str: pkl [pkl / json]): 输出的数据格式
             export(str: None): 导出密钥等私密参数的路径名称（无需文件后缀），默认返回但不导出文件
+            ratio(float: 0.1 [0 < ratio <= 1]): 加密数据比例，数值越大加密的数据比例越大，1 表示完全加密
             check(bool: True): 检测加密数据是否可以正常解密
 
         :return
@@ -125,28 +127,42 @@ class Encryptor:
             pkl: 此格式支持的加密数据类型较多，并且附带 python 解密函数，可依靠自身进行解密，但只可以在 python 端进行解密操作
             json: 此格式支持如下几种数据类型 (dict, list, str, int, float, bool, None, bytes->bytes_str, tuple(must -> list)), 可以在任意语言中读取和解密，需搭配对应语言的解密函数进行解密操作
         '''
-        if output is None:
-            output = input
+        assert 0 < ratio <= 1, 'Please check the ratio.'
+
+        params = self.encrypt_op.get_public_params()
 
         if format == 'pkl':
+            bytes_datas = pickle.dumps(input, protocol=4)
+            spilt_length = math.ceil(len(bytes_datas) * ratio)
             encrypt_datas = self.encrypt_op.encode(
-                pickle.dumps(input, protocol=4))
+                bytes_datas[:spilt_length]
+            )
+            length = len(encrypt_datas)
+            encrypt_datas = encrypt_datas + bytes_datas[spilt_length:]
 
             with open(f'{output}.{format}', "wb") as file:
                 pickle.dump({
                     'datas': Encryptor.bytes2str(encrypt_datas),
-                    'params': Encryptor.check_and_convert(self.encrypt_op.get_public_params()),
+                    'params': Encryptor.check_and_convert(params),
+                    'length': length,
                     'decode': self.encrypt_op.decode
                 }, file, protocol=4)
 
         elif format == 'json':
+            bytes_datas = json.dumps(
+                Encryptor.check_and_convert(input)).encode('UTF-8')
+            spilt_length = math.ceil(len(bytes_datas) * ratio)
             encrypt_datas = self.encrypt_op.encode(
-                json.dumps(Encryptor.check_and_convert(input)).encode('UTF-8'))
+                bytes_datas[:spilt_length]
+            )
+            length = len(encrypt_datas)
+            encrypt_datas = encrypt_datas + bytes_datas[spilt_length:]
 
             with open(f'{output}.{format}', "w") as file:
                 json.dump({
                     'datas': Encryptor.bytes2str(encrypt_datas),
-                    'params': Encryptor.check_and_convert(self.encrypt_op.get_public_params())
+                    'params': Encryptor.check_and_convert(params),
+                    'length': length
                 }, file)
         else:
             raise ValueError('Please check the format type.')
@@ -192,10 +208,14 @@ class Encryptor:
         params = encrypt_package['params']
         params = Encryptor.resume_and_convert(params)
 
+        # 解码加密长度信息
+        length = encrypt_package['length']
+
         # 解码加密数据
         encrypt_datas = Encryptor.str2bytes(encrypt_package['datas'])
         decode = encrypt_package.get('decode', decode)
-        pure_datas = decode(encrypt_datas, **kwargs, **params)
+        pure_datas = decode(encrypt_datas[:length], **kwargs, **params)
+        pure_datas = pure_datas + encrypt_datas[length:]
 
         # 重新加载原始数据
         if ext == '.pkl':
