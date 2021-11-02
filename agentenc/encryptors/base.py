@@ -108,14 +108,13 @@ class Encryptor:
         else:
             raise ValueError('Please check input data type.')
 
-    def encode(self, input: any, output: str, format: str = 'pkl', export: str = None, ratio: float = 0.1, check: bool = True) -> dict:
+    def encode(self, input: any, output: str, export: str = None, ratio: float = 0.1, check: bool = True) -> dict:
         '''
         加密函数
 
         :param 
             input(any): 输入的需要加密的数据
             output(str: None): 输出的文件路径名称（无需文件后缀）
-            format(str: pkl [pkl / json]): 输出的数据格式
             export(str: None): 导出密钥等私密参数的路径名称（无需文件后缀），默认返回但不导出文件
             ratio(float: 0.1 [0 < ratio <= 1]): 加密数据比例，数值越大加密的数据比例越大，1 表示完全加密
             check(bool: True): 检测加密数据是否可以正常解密
@@ -124,52 +123,31 @@ class Encryptor:
             private_params(dict): 加密器的私密参数，如密钥等
 
         :format details
-            pkl: 此格式支持的加密数据类型较多，并且附带 python 解密函数，可依靠自身进行解密，但只可以在 python 端进行解密操作
-            json: 此格式支持如下几种数据类型 (dict, list, str, int, float, bool, None, bytes->bytes_str, tuple(must -> list)), 可以在任意语言中读取和解密，需搭配对应语言的解密函数进行解密操作
+            json: 此格式支持如下几种数据类型 (dict, list, str, int, float, bool, None, bytes->bytes_str, tuple(must -> list))
         '''
         assert 0 < ratio <= 1, 'Please check the ratio.'
 
-        if format == 'pkl':
-            bytes_datas = pickle.dumps(input, protocol=4)
-            spilt_length = math.ceil(len(bytes_datas) * ratio)
-            encrypt_datas = self.encrypt_op.encode(
-                bytes_datas[:spilt_length]
-            )
-            length = len(encrypt_datas)
-            encrypt_datas = encrypt_datas + bytes_datas[spilt_length:]
+        bytes_datas = json.dumps(
+            Encryptor.check_and_convert(input)).encode('UTF-8')
+        spilt_length = math.ceil(len(bytes_datas) * ratio)
+        encrypt_datas = self.encrypt_op.encode(
+            bytes_datas[:spilt_length]
+        )
+        length = len(encrypt_datas)
+        encrypt_datas = encrypt_datas + bytes_datas[spilt_length:]
 
-            with open(f'{output}.{format}', "wb") as file:
-                pickle.dump({
-                    'datas': Encryptor.bytes2str(encrypt_datas),
-                    'params': Encryptor.check_and_convert(self.encrypt_op.get_public_params()),
-                    'length': length,
-                    'decode': self.encrypt_op.decode
-                }, file, protocol=4)
-
-        elif format == 'json':
-            bytes_datas = json.dumps(
-                Encryptor.check_and_convert(input)).encode('UTF-8')
-            spilt_length = math.ceil(len(bytes_datas) * ratio)
-            encrypt_datas = self.encrypt_op.encode(
-                bytes_datas[:spilt_length]
-            )
-            length = len(encrypt_datas)
-            encrypt_datas = encrypt_datas + bytes_datas[spilt_length:]
-
-            with open(f'{output}.{format}', "w") as file:
-                json.dump({
-                    'datas': Encryptor.bytes2str(encrypt_datas),
-                    'params': Encryptor.check_and_convert(self.encrypt_op.get_public_params()),
-                    'length': length
-                }, file)
-        else:
-            raise ValueError('Please check the format type.')
+        with open(f'{output}.json', "w") as file:
+            json.dump({
+                'datas': Encryptor.bytes2str(encrypt_datas),
+                'params': Encryptor.check_and_convert(self.encrypt_op.get_public_params()),
+                'length': length
+            }, file)
 
         private_params = self.encrypt_op.get_private_params(export)
 
         if check:
             _input = Encryptor.decode(
-                input=f'{output}.{format}',
+                input=f'{output}.json',
                 decode=self.encrypt_op.decode,
                 **private_params
             )
@@ -190,17 +168,14 @@ class Encryptor:
         :return
             pure_datas(any): 原始数据
         '''
-        ext = os.path.splitext(input)[1]
+        file_name, ext = os.path.splitext(input)
+        if ext == '':
+            ext = '.json'
+        file_path = file_name + ext
 
-        # 加载机密数据包
-        if ext == '.pkl':
-            with open(input, "rb") as file:
-                encrypt_package = pickle.load(file)
-        elif ext == '.json':
-            with open(input, "r") as file:
-                encrypt_package = json.load(file)
-        else:
-            raise ValueError('Please check input path.')
+        # 加载加密数据包
+        with open(file_path, "r") as file:
+            encrypt_package = json.load(file)
 
         # 解码公开参数
         params = encrypt_package['params']
@@ -216,12 +191,7 @@ class Encryptor:
         pure_datas = pure_datas + encrypt_datas[length:]
 
         # 重新加载原始数据
-        if ext == '.pkl':
-            output = pickle.loads(pure_datas)
-        elif ext == '.json':
-            output = json.loads(pure_datas.decode('UTF-8'))
-            output = Encryptor.resume_and_convert(output)
-        else:
-            raise ValueError('Please check input data type.')
+        output = json.loads(pure_datas.decode('UTF-8'))
+        output = Encryptor.resume_and_convert(output)
 
         return output

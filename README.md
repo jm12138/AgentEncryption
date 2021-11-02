@@ -25,7 +25,7 @@
             input=pure_data, 
             output='out', 
             format='pkl', 
-            keys_saving_path='key'
+            export='key'
         )
 
         # 打印随机生成的密钥
